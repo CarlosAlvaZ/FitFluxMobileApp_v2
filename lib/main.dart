@@ -1,4 +1,5 @@
 import 'package:fit_flux_mobile_app_v2/privates.dart';
+import 'package:fit_flux_mobile_app_v2/routes/account.dart';
 import 'package:fit_flux_mobile_app_v2/routes/home.dart';
 import 'package:fit_flux_mobile_app_v2/routes/login.dart';
 import 'package:fit_flux_mobile_app_v2/routes/register.dart';
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const Home(),
         '/register': (context) => const Register(),
         '/login': (context) => const Login(),
+        '/account': (context) => const Account(),
       },
       debugShowCheckedModeBanner: false,
       home: const Splashpage(),

@@ -21,5 +21,7 @@ class AppColors {
   static const Color extraPrimary = Color(0xFF121212);
   static const Color extraSecondary = Color(0xFF1D1D1D);
   static const Color extraTertiary = Color(0xFF979797);
+  static const Color extraQuaternary = Color(0xFF363636);
   static const Color extraQuinary = Color(0xFF535353);
+  static const Color modalBackground = Color(0xFF363636);
 }
