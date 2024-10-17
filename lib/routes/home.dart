@@ -1,15 +1,17 @@
+import 'dart:math';
+
 import 'package:fit_flux_mobile_app_v2/appcolors.dart';
 import 'package:fit_flux_mobile_app_v2/models/excercise.dart';
 import 'package:fit_flux_mobile_app_v2/models/session.dart';
 import 'package:fit_flux_mobile_app_v2/utils/get_current_day.dart';
 import 'package:fit_flux_mobile_app_v2/constants.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/create_new_excercise_modal.dart';
-import 'package:fit_flux_mobile_app_v2/widgets/custom_text_input.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/empty_message_sliver.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/error_message_sliver.dart';
+import 'package:fit_flux_mobile_app_v2/widgets/excercise_list_item.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/home_sliver_app_bar.dart';
-import 'package:fit_flux_mobile_app_v2/widgets/modal_text_input.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/sliver_list_loading.dart';
+import 'package:fit_flux_mobile_app_v2/utils/logger.dart' show logger;
 import 'package:flutter/material.dart';
 
 class Home extends StatefulWidget {
@@ -20,9 +22,8 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  List<Excercise> _excercises = [];
+  Future<List<Excercise>>? _excercisesFuture;
   Session? _session;
-
   bool _isLoading = true;
 
   @override
@@ -33,6 +34,8 @@ class _HomeState extends State<Home> {
 
   Future<void> _getSession() async {
     try {
+      setState(() => _isLoading = true);
+
       final today = GetCurrentDay.weekday();
 
       final sessionResponse =
@@ -42,28 +45,45 @@ class _HomeState extends State<Home> {
       }
 
       setState(() => _session = Session.fromMap(sessionResponse));
+
+      _loadExcercises();
     } catch (e) {
+      logger.e(e);
       if (!mounted) return;
-      context.showSnackBar(message: "Error al cargar sesión");
+      // context.showSnackBar(message: "Error al cargar sesión");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<List<Excercise>?> _getExcercises() async {
+  Future<List<Excercise>> _getExcercises() async {
     try {
-      if (_session == null) return null;
+      if (_session != null) {
+        final excerciseResponse = await supabase.rpc('get_session_excercises',
+            params: {
+              'p_session_id': _session!.id
+            }).order('excercise_order', ascending: true) as List<dynamic>;
 
-      final excerciseResponse = await supabase.rpc('get_session_excercises',
-          params: {'p_session_id': _session!.id}).order('excercise_order');
+        if (excerciseResponse.isEmpty) return [];
 
-      if (excerciseResponse.isEmpty) return List.empty();
-
-      setState(() => _excercises =
-          excerciseResponse.map((item) => Excercise.fromMap(item)).toList());
+        return excerciseResponse
+            .map((item) => Excercise.fromMap(item as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
     } catch (e) {
-      if (!mounted) return null;
-      context.showSnackBar(message: "Error al cargar sesión");
+      logger.e(e);
+      if (mounted) {
+        context.showSnackBar(message: "Error al cargar ejercicios");
+      }
+      return [];
     }
-    return _excercises;
+  }
+
+  void _loadExcercises() {
+    if (mounted) {
+      setState(() => _excercisesFuture = _getExcercises());
+    }
   }
 
   void _showCreateNewExcerciseModal(BuildContext context) {
@@ -71,8 +91,29 @@ class _HomeState extends State<Home> {
         context: context,
         isScrollControlled: true,
         builder: (context) {
-          return const CreateNewExcerciseModal();
+          return CreateNewExcerciseModal(
+            onSubmit: _createNewExcercise,
+          );
         });
+  }
+
+  Future<void> _createNewExcercise(
+      String name, String description, bool isFlexible, int duration) async {
+    if (_session == null) return;
+    try {
+      await supabase.rpc('create_new_excercise', params: {
+        'p_session_id': _session!.id,
+        'p_name': name,
+        'p_description': description,
+        'p_duration': isFlexible ? 0 : duration,
+        'p_is_flexible': isFlexible
+      });
+      _loadExcercises();
+    } catch (e) {
+      logger.e(e);
+      if (!mounted) return;
+      context.showSnackBar(message: "Ha ocurrido un error. Intente más tarde.");
+    }
   }
 
   @override
@@ -94,22 +135,35 @@ class _HomeState extends State<Home> {
       body: CustomScrollView(
         slivers: [
           const CustomSliverAppBar(),
-          FutureBuilder(
-              future: _getExcercises(),
-              builder: (context, snapShot) {
-                if (snapShot.hasError) return const ErrorMessageSliver();
+          _isLoading
+              ? const SliverListLoading()
+              : FutureBuilder<List<Excercise>>(
+                  future: _excercisesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SliverListLoading(); // Show loading while the future is running
+                    } else if (snapshot.hasError) {
+                      return const ErrorMessageSliver(); // Show error message if there was an error
+                    } else if (snapshot.hasData) {
+                      final excercises = snapshot.data!;
 
-                if (snapShot.data != null && snapShot.data!.isEmpty) {
-                  return const EmptyMessageSliver();
-                }
+                      if (excercises.isEmpty) {
+                        return const EmptyMessageSliver();
+                      }
 
-                if (snapShot.data != null && snapShot.data!.isNotEmpty) {
-                  return SliverList(
-                      delegate: SliverChildBuilderDelegate((context, i) {}));
-                }
-
-                return const SliverListLoading();
-              })
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) =>
+                              ExcerciseListItem(exercise: excercises[index]),
+                          childCount: excercises.length,
+                        ),
+                      );
+                    }
+                    return const SliverToBoxAdapter(
+                      child: Text("Unknown state"),
+                    );
+                  },
+                )
         ],
       ),
     );
