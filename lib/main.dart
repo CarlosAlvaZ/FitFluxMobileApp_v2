@@ -12,9 +12,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: '.env');
+  final SUPABASE_URL = String.fromEnvironment('SUPABASE_URL',
+      defaultValue: dotenv.env['SUPABASE_URL'] ?? '');
+  final SUPABASE_ANON_KEY = String.fromEnvironment('SUPABASE_ANON_KEY',
+      defaultValue: dotenv.env['SUPABASE_ANON_KEY'] ?? '');
   await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
-      anonKey: dotenv.env['SUPABASE_ANON_KEY']!);
+      url: SUPABASE_URL,
+      anonKey: SUPABASE_ANON_KEY);
 
   runApp(const MyApp());
 }
