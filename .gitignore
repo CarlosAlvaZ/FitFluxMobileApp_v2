@@ -44,4 +44,4 @@ app.*.map.json
 
 # Secrets
 secret.txt
-/lib/privates.dart
+*.env
