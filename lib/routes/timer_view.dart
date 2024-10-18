@@ -134,6 +134,12 @@ class _TimerViewState extends State<TimerView> {
         await supabase.from('active_excercise').update(
             {"excercise_id": nextExcercise.id}).eq("profile_id", userId);
         setState(() => _currentExcercise = nextExcercise);
+      } else {
+        await _cancelSession();
+        if (mounted) {
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil("/success", (route) => false);
+        }
       }
     } catch (e) {
       logger.e(e);

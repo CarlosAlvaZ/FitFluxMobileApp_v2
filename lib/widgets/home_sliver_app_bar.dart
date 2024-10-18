@@ -20,7 +20,7 @@ class CustomSliverAppBar extends StatelessWidget {
         ),
         style: context.textTheme.bodyLarge,
       ),
-      leadingWidth: 88,
+      leadingWidth: 80,
       leading: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: SvgPicture.asset(

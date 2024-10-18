@@ -52,7 +52,7 @@ class _FlexibleTimerState extends State<FlexibleTimer> {
   void _startTimer() {
     setState(() => _isRunning = true);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() => _seconds++);
+      setState(() => _seconds++);
     });
   }
 
@@ -68,9 +68,11 @@ class _FlexibleTimerState extends State<FlexibleTimer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          const CircularProgressIndicator(
+          CircularProgressIndicator(
             value: 100,
-            valueColor: AlwaysStoppedAnimation(Colors.white),
+            valueColor: _isRunning
+                ? const AlwaysStoppedAnimation(Colors.greenAccent)
+                : const AlwaysStoppedAnimation(Colors.white),
             strokeWidth: 12,
             backgroundColor: Colors.greenAccent,
           ),
