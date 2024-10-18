@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fit_flux_mobile_app_v2/routes/account.dart';
 import 'package:fit_flux_mobile_app_v2/routes/home.dart';
 import 'package:fit_flux_mobile_app_v2/routes/login.dart';
@@ -11,14 +13,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
-  await dotenv.load(fileName: '.env');
-  final SUPABASE_URL = String.fromEnvironment('SUPABASE_URL',
-      defaultValue: dotenv.env['SUPABASE_URL'] ?? '');
-  final SUPABASE_ANON_KEY = String.fromEnvironment('SUPABASE_ANON_KEY',
-      defaultValue: dotenv.env['SUPABASE_ANON_KEY'] ?? '');
-  await Supabase.initialize(
-      url: SUPABASE_URL,
-      anonKey: SUPABASE_ANON_KEY);
+  if (await File('.env').exists()) {
+    await dotenv.load(fileName: '.env');
+  }
+  final SUPABASE_URL =
+      dotenv.env['SUPABASE_URL'] ?? String.fromEnvironment('SUPABASE_URL');
+  final SUPABASE_ANON_KEY =
+      dotenv.env['SUPABASE_ANON_KEY'] ?? String.fromEnvironment('SUPABASE_ANON_KEY');
+  await Supabase.initialize(url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY);
 
   runApp(const MyApp());
 }
