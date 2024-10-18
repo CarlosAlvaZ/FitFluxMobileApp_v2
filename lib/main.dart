@@ -4,6 +4,7 @@ import 'package:fit_flux_mobile_app_v2/routes/home.dart';
 import 'package:fit_flux_mobile_app_v2/routes/login.dart';
 import 'package:fit_flux_mobile_app_v2/routes/register.dart';
 import 'package:fit_flux_mobile_app_v2/routes/splashpage.dart';
+import 'package:fit_flux_mobile_app_v2/routes/timer_view.dart';
 import 'package:fit_flux_mobile_app_v2/themedata.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const Register(),
         '/login': (context) => const Login(),
         '/account': (context) => const Account(),
+        '/timer': (context) => const TimerView(),
       },
       debugShowCheckedModeBanner: false,
       home: const Splashpage(),

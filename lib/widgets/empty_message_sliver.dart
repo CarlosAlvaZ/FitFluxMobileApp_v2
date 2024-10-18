@@ -19,7 +19,7 @@ class EmptyMessageSliver extends StatelessWidget {
             style: context.textTheme.headlineLarge,
           ),
           Text(
-            "Empieza añadiendo actividades con +",
+            "Empieza añadiendo actividades con + Añadir ejercicio",
             style: context.textTheme.bodySmall,
           )
         ],

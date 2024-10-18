@@ -1,6 +1,7 @@
 import 'package:duration_picker/duration_picker.dart';
 import 'package:fit_flux_mobile_app_v2/appcolors.dart';
 import 'package:fit_flux_mobile_app_v2/constants.dart';
+import 'package:fit_flux_mobile_app_v2/models/excercise.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/custom_button.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/custom_text_input.dart';
 import 'package:flutter/material.dart';
@@ -8,18 +9,14 @@ import 'package:flutter/material.dart';
 class CreateNewExcerciseModal extends StatefulWidget {
   const CreateNewExcerciseModal({
     super.key,
-    this.name,
-    this.description,
-    this.duration,
-    this.isFlexible,
+    this.excercise,
+    this.buttonText = "Crear",
     required this.onSubmit,
   });
 
-  final String? name;
-  final String? description;
-  final int? duration;
-  final bool? isFlexible;
-  final Function(String, String, bool, int) onSubmit;
+  final Excercise? excercise;
+  final String buttonText;
+  final Function(Excercise) onSubmit;
 
   @override
   State<CreateNewExcerciseModal> createState() =>
@@ -41,28 +38,17 @@ class _CreateNewExcerciseModalState extends State<CreateNewExcerciseModal> {
   }
 
   void _setUpControllers() {
-    if (widget.name == null) {
+    if (widget.excercise == null) {
       _nameController = TextEditingController();
-    } else {
-      _nameController = TextEditingController(text: widget.name);
-    }
-
-    if (widget.description == null) {
       _descriptionController = TextEditingController();
-    } else {
-      _descriptionController = TextEditingController(text: widget.description);
-    }
-
-    if (widget.duration == null) {
       _duration = Duration.zero;
-    } else {
-      _duration = Duration(seconds: widget.duration!);
-    }
-
-    if (widget.isFlexible == null) {
       _isTemporized = false;
     } else {
-      _isTemporized = !widget.isFlexible!;
+      _nameController = TextEditingController(text: widget.excercise!.name);
+      _descriptionController =
+          TextEditingController(text: widget.excercise!.description);
+      _duration = Duration(seconds: widget.excercise!.duration);
+      _isTemporized = !widget.excercise!.isFlexible;
     }
   }
 
@@ -86,7 +72,14 @@ class _CreateNewExcerciseModalState extends State<CreateNewExcerciseModal> {
     final name = _nameController.text;
     final description = _descriptionController.text;
 
-    widget.onSubmit(name, description, !_isTemporized, _duration.inSeconds);
+    widget.onSubmit(Excercise(
+        widget.excercise == null ? "" : widget.excercise!.id,
+        name,
+        description,
+        !_isTemporized,
+        _duration.inSeconds,
+        "",
+        0));
     if (context.mounted) {
       Navigator.pop(context);
     }
@@ -201,7 +194,8 @@ class _CreateNewExcerciseModalState extends State<CreateNewExcerciseModal> {
             const SizedBox(
               height: 16,
             ),
-            CustomButton(text: "Crear", onPressed: () => _createNew(context))
+            CustomButton(
+                text: widget.buttonText, onPressed: () => _createNew(context))
           ],
         ),
       ),

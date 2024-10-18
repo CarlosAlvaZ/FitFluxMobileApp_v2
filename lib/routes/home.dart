@@ -1,11 +1,10 @@
-import 'dart:math';
-
 import 'package:fit_flux_mobile_app_v2/appcolors.dart';
 import 'package:fit_flux_mobile_app_v2/models/excercise.dart';
 import 'package:fit_flux_mobile_app_v2/models/session.dart';
 import 'package:fit_flux_mobile_app_v2/utils/get_current_day.dart';
 import 'package:fit_flux_mobile_app_v2/constants.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/create_new_excercise_modal.dart';
+import 'package:fit_flux_mobile_app_v2/widgets/custom_button.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/empty_message_sliver.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/error_message_sliver.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/excercise_list_item.dart';
@@ -22,14 +21,24 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  Future<List<Excercise>>? _excercisesFuture;
+  List<Excercise> _excercises = [];
   Session? _session;
   bool _isLoading = true;
+  bool _isLoadingExcercises = true;
+  bool _excercisesHaveError = false;
+  bool _isLoadingAcitve = true;
+  bool _isActive = false;
 
   @override
   void initState() {
     super.initState();
-    _getSession();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    await _getSession();
+    await _getExcercises();
+    await _getActiveSession();
   }
 
   Future<void> _getSession() async {
@@ -45,44 +54,77 @@ class _HomeState extends State<Home> {
       }
 
       setState(() => _session = Session.fromMap(sessionResponse));
-
-      _loadExcercises();
     } catch (e) {
       logger.e(e);
       if (!mounted) return;
-      // context.showSnackBar(message: "Error al cargar sesión");
+      context.showSnackBar(message: "Error al cargar sesión");
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  Future<List<Excercise>> _getExcercises() async {
+  Future<void> _getExcercises() async {
     try {
+      setState(() => _isLoadingExcercises = true);
       if (_session != null) {
         final excerciseResponse = await supabase.rpc('get_session_excercises',
             params: {
               'p_session_id': _session!.id
             }).order('excercise_order', ascending: true) as List<dynamic>;
 
-        if (excerciseResponse.isEmpty) return [];
+        if (excerciseResponse.isEmpty) return;
 
-        return excerciseResponse
+        final data = excerciseResponse
             .map((item) => Excercise.fromMap(item as Map<String, dynamic>))
             .toList();
+
+        setState(() => _excercises = data);
       }
-      return [];
     } catch (e) {
       logger.e(e);
+      setState(() => _excercisesHaveError = true);
       if (mounted) {
         context.showSnackBar(message: "Error al cargar ejercicios");
       }
-      return [];
+    } finally {
+      setState(() => _isLoadingExcercises = false);
     }
   }
 
-  void _loadExcercises() {
-    if (mounted) {
-      setState(() => _excercisesFuture = _getExcercises());
+  Future<void> _getActiveSession() async {
+    try {
+      setState(() => _isLoadingAcitve = true);
+      final userId = supabase.auth.currentUser!.id;
+      final active = await supabase
+          .from('active_excercise')
+          .select()
+          .eq('profile_id', userId);
+      if (active.isEmpty) {
+        setState(() => _isActive = false);
+      } else {
+        setState(() => _isActive = true);
+      }
+    } catch (e) {
+      logger.e(e);
+      if (mounted) {
+        context.showSnackBar(message: "No se pudo obtener la sesión activa");
+      }
+    } finally {
+      setState(() => _isLoadingAcitve = false);
+    }
+  }
+
+  Future<void> _removeExcercise(String id) async {
+    try {
+      await supabase.rpc('remove_excercise', params: {'p_excercise_id': id});
+      if (mounted) {
+        context.showSnackBar(message: "Actividad eliminada exitosamente");
+      }
+    } catch (e) {
+      logger.e(e);
+      if (mounted) {
+        context.showSnackBar(message: "Error al eliminar actividad");
+      }
     }
   }
 
@@ -90,29 +132,77 @@ class _HomeState extends State<Home> {
     showModalBottomSheet(
         context: context,
         isScrollControlled: true,
-        builder: (context) {
-          return CreateNewExcerciseModal(
-            onSubmit: _createNewExcercise,
-          );
-        });
+        builder: (context) => CreateNewExcerciseModal(
+              onSubmit: _createNewExcercise,
+            ));
   }
 
-  Future<void> _createNewExcercise(
-      String name, String description, bool isFlexible, int duration) async {
+  void _showEditExcerciseModal(BuildContext context, Excercise excercise) {
+    showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => CreateNewExcerciseModal(
+              onSubmit: _updateExcercise,
+              excercise: excercise,
+              buttonText: "Actualizar",
+            ));
+  }
+
+  void _onDismissed(String id) {
+    setState(() => _excercises.removeWhere((e) => e.id == id));
+    _removeExcercise(id);
+  }
+
+  Future<void> _startSession() async {
+    try {
+      if (_session == null || supabase.auth.currentUser == null) return;
+      final userId = supabase.auth.currentUser!.id;
+      await supabase.rpc('start_session',
+          params: {'p_profile_id': userId, 'p_session_id': _session!.id});
+      await _getActiveSession();
+      if (mounted) {
+        Navigator.of(context).pushNamed('/timer');
+      }
+    } catch (e) {
+      logger.e(e);
+      if (mounted) {
+        context.showSnackBar(message: "Error al eliminar actividad");
+      }
+    }
+  }
+
+  Future<void> _createNewExcercise(Excercise excercise) async {
     if (_session == null) return;
     try {
       await supabase.rpc('create_new_excercise', params: {
         'p_session_id': _session!.id,
-        'p_name': name,
-        'p_description': description,
-        'p_duration': isFlexible ? 0 : duration,
-        'p_is_flexible': isFlexible
+        'p_name': excercise.name,
+        'p_description': excercise.description,
+        'p_duration': excercise.isFlexible ? 0 : excercise.duration,
+        'p_is_flexible': excercise.isFlexible
       });
-      _loadExcercises();
+      _getExcercises();
     } catch (e) {
       logger.e(e);
       if (!mounted) return;
       context.showSnackBar(message: "Ha ocurrido un error. Intente más tarde.");
+    }
+  }
+
+  Future<void> _updateExcercise(Excercise excercise) async {
+    try {
+      await supabase.from('excercises').update({
+        "name": excercise.name,
+        "description": excercise.description,
+        "is_flexible": excercise.isFlexible,
+        "duration": excercise.duration
+      }).eq("id", excercise.id);
+      _getExcercises();
+    } catch (e) {
+      logger.e(e);
+      if (mounted) {
+        context.showSnackBar(message: "No se pudo actualizar el ejercicio");
+      }
     }
   }
 
@@ -135,35 +225,44 @@ class _HomeState extends State<Home> {
       body: CustomScrollView(
         slivers: [
           const CustomSliverAppBar(),
-          _isLoading
+          _isLoading || _isLoadingExcercises
               ? const SliverListLoading()
-              : FutureBuilder<List<Excercise>>(
-                  future: _excercisesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SliverListLoading(); // Show loading while the future is running
-                    } else if (snapshot.hasError) {
-                      return const ErrorMessageSliver(); // Show error message if there was an error
-                    } else if (snapshot.hasData) {
-                      final excercises = snapshot.data!;
-
-                      if (excercises.isEmpty) {
-                        return const EmptyMessageSliver();
-                      }
-
-                      return SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) =>
-                              ExcerciseListItem(exercise: excercises[index]),
-                          childCount: excercises.length,
-                        ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(
-                      child: Text("Unknown state"),
-                    );
-                  },
+              : _excercisesHaveError
+                  ? const ErrorMessageSliver()
+                  : _excercises.isEmpty
+                      ? const EmptyMessageSliver()
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                              childCount: _excercises.length,
+                              (context, index) => ExcerciseListItem(
+                                    onTap: () => _showEditExcerciseModal(
+                                        context, _excercises[index]),
+                                    onDismissed: (_) =>
+                                        _onDismissed(_excercises[index].id),
+                                    exercise: _excercises[index],
+                                  ))),
+          _excercises.isNotEmpty
+              ? SliverPadding(
+                  padding: const EdgeInsets.all(24.0),
+                  sliver: SliverToBoxAdapter(
+                    child: CustomButton(
+                        text: _isLoadingAcitve
+                            ? "Cargando..."
+                            : _isActive
+                                ? "Ir a sesión activa"
+                                : "Iniciar",
+                        onPressed: _isLoadingAcitve
+                            ? null
+                            : _isActive
+                                ? () async {
+                                    await Navigator.of(context)
+                                        .pushNamed('/timer');
+                                    _getActiveSession();
+                                  }
+                                : _startSession),
+                  ),
                 )
+              : const SliverToBoxAdapter()
         ],
       ),
     );
