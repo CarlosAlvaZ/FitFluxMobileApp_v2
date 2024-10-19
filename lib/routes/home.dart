@@ -47,8 +47,14 @@ class _HomeState extends State<Home> {
 
       final today = GetCurrentDay.weekday();
 
-      final sessionResponse =
-          await supabase.from('sessions').select().eq('day', today).single();
+      final userId = supabase.auth.currentUser!.id;
+      final sessionResponse = await supabase
+          .from('sessions')
+          .select()
+          .eq('day', today)
+          .eq('profile_id', userId)
+          .limit(1)
+          .single();
       if (sessionResponse.isEmpty) {
         throw const FormatException("Session response empty");
       }
@@ -133,6 +139,7 @@ class _HomeState extends State<Home> {
         context: context,
         isScrollControlled: true,
         builder: (context) => CreateNewExcerciseModal(
+              modalTitle: "Crear nuevo ejercicio",
               onSubmit: _createNewExcercise,
             ));
   }
@@ -142,6 +149,7 @@ class _HomeState extends State<Home> {
         context: context,
         isScrollControlled: true,
         builder: (context) => CreateNewExcerciseModal(
+              modalTitle: "Actualizar ejercicio",
               onSubmit: _updateExcercise,
               excercise: excercise,
               buttonText: "Actualizar",
@@ -161,7 +169,8 @@ class _HomeState extends State<Home> {
           params: {'p_profile_id': userId, 'p_session_id': _session!.id});
       await _getActiveSession();
       if (mounted) {
-        Navigator.of(context).pushNamed('/timer');
+        await Navigator.of(context).pushNamed('/timer');
+        _getActiveSession();
       }
     } catch (e) {
       logger.e(e);
@@ -195,7 +204,7 @@ class _HomeState extends State<Home> {
         "name": excercise.name,
         "description": excercise.description,
         "is_flexible": excercise.isFlexible,
-        "duration": excercise.duration
+        "duration": excercise.isFlexible ? 0 : excercise.duration
       }).eq("id", excercise.id);
       _getExcercises();
     } catch (e) {

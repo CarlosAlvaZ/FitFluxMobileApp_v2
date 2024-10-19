@@ -11,12 +11,13 @@ class CreateNewExcerciseModal extends StatefulWidget {
     super.key,
     this.excercise,
     this.buttonText = "Crear",
-    required this.onSubmit,
+    required this.onSubmit, required this.modalTitle,
   });
 
   final Excercise? excercise;
   final String buttonText;
   final Function(Excercise) onSubmit;
+  final String modalTitle;
 
   @override
   State<CreateNewExcerciseModal> createState() =>
@@ -114,7 +115,7 @@ class _CreateNewExcerciseModalState extends State<CreateNewExcerciseModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Crear nuevo ejercicio",
+              widget.modalTitle,
               style: context.textTheme.labelLarge,
             ),
             const SizedBox(

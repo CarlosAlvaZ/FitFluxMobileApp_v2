@@ -8,8 +8,6 @@ import 'package:fit_flux_mobile_app_v2/appcolors.dart';
 import 'package:fit_flux_mobile_app_v2/models/excercise.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/flexible_timer.dart';
 import 'package:fit_flux_mobile_app_v2/widgets/main_timer.dart';
-import 'package:fit_flux_mobile_app_v2/widgets/play_button.dart';
-import 'package:fit_flux_mobile_app_v2/widgets/timer_button_with_label.dart';
 import 'package:flutter/material.dart';
 
 class TimerView extends StatefulWidget {
